@@ -1,9 +1,13 @@
 
-import { AssessmentHistoryItem } from '../types';
+import { AssessmentHistoryItem, Domain, FeedbackMessage } from '../types';
 import { db } from './firebaseConfig';
-import { collection, setDoc, getDocs, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { collection, setDoc, getDocs, deleteDoc, doc, writeBatch, getDoc, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { INITIAL_DOMAINS } from '../constants';
 
 const COLLECTION_NAME = 'assessments';
+const SETTINGS_COLLECTION = 'settings';
+const SCHEMA_DOC_ID = 'assessment_schema';
+const FEEDBACK_COLLECTION = 'public_feedback';
 
 export const api = {
     /**
@@ -59,7 +63,6 @@ export const api = {
             await deleteDoc(docRef);
         } catch (error: any) {
             console.error("Firebase Delete Error:", error.message);
-            // إنشاء خطأ جديد نظيف لتجنب مشاكل Circular Structure
             const cleanError = new Error(error.message || "فشل الحذف");
             // @ts-ignore
             cleanError.code = error.code;
@@ -101,11 +104,101 @@ export const api = {
             return true;
         } catch (error: any) {
             console.error("Firebase Batch Delete Error:", error.message);
-            // إنشاء خطأ جديد نظيف لتجنب مشاكل Circular Structure
             const cleanError = new Error(error.message || "فشل الحذف الجماعي");
             // @ts-ignore
             cleanError.code = error.code;
             throw cleanError;
         }
+    },
+
+    /**
+     * جلب هيكل الأسئلة من قاعدة البيانات
+     * إذا لم تكن موجودة، يعيد القيم الافتراضية ويقوم بحفظها في القاعدة
+     */
+    async getDomains(): Promise<Domain[]> {
+        try {
+            const docRef = doc(db, SETTINGS_COLLECTION, SCHEMA_DOC_ID);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.domains && Array.isArray(data.domains)) {
+                    return data.domains as Domain[];
+                }
+            }
+
+            // إذا لم يوجد المستند، قم بإنشائه بالقيم الافتراضية
+            await setDoc(docRef, { domains: INITIAL_DOMAINS });
+            return INITIAL_DOMAINS;
+
+        } catch (error) {
+            console.error("Error fetching domains:", error);
+            return INITIAL_DOMAINS; // Fallback
+        }
+    },
+
+    /**
+     * حفظ تعديلات هيكل الأسئلة في قاعدة البيانات
+     */
+    async saveDomains(domains: Domain[]): Promise<void> {
+        try {
+            const docRef = doc(db, SETTINGS_COLLECTION, SCHEMA_DOC_ID);
+            await setDoc(docRef, { domains: domains }, { merge: true });
+        } catch (error: any) {
+            console.error("Error saving domains:", error);
+            throw new Error("فشل حفظ التعديلات في قاعدة البيانات");
+        }
+    },
+
+    /**
+     * إرسال رسالة جديدة للمجتمع
+     */
+    async sendFeedback(message: Omit<FeedbackMessage, 'id' | 'timestamp' | 'dateLabel'>): Promise<void> {
+        try {
+            await addDoc(collection(db, FEEDBACK_COLLECTION), {
+                ...message,
+                timestamp: serverTimestamp()
+            });
+        } catch (error: any) {
+            console.error("Error sending feedback:", error);
+            throw new Error("فشل إرسال الرسالة");
+        }
+    },
+
+    /**
+     * الاشتراك في رسائل المجتمع (تحديث لحظي)
+     */
+    subscribeToFeedback(callback: (messages: FeedbackMessage[]) => void): () => void {
+        const q = query(
+            collection(db, FEEDBACK_COLLECTION), 
+            orderBy('timestamp', 'desc'), 
+            limit(100)
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const messages: FeedbackMessage[] = [];
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                // Convert timestamp to readable string safely
+                let dateLabel = "الآن";
+                if (data.timestamp && data.timestamp.seconds) {
+                    dateLabel = new Date(data.timestamp.seconds * 1000).toLocaleString('ar-SA');
+                }
+                
+                messages.push({
+                    id: doc.id,
+                    name: data.name,
+                    message: data.message,
+                    role: data.role,
+                    timestamp: data.timestamp,
+                    dateLabel: dateLabel
+                });
+            });
+            // Reverse to show newest at bottom if chat style, or keep desc for forum style.
+            // Let's stick to Newest First (Top) for Forum style as per 'desc' order.
+            callback(messages);
+        });
+
+        return unsubscribe;
     }
 };

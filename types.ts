@@ -53,6 +53,15 @@ export interface AssessmentHistoryItem {
   detailedAnswers: Answers;
 }
 
+export interface FeedbackMessage {
+    id: string;
+    name: string;
+    message: string;
+    role: string;
+    timestamp: any; // Firestore Timestamp
+    dateLabel?: string; // For display
+}
+
 export type ToastType = 'success' | 'error' | 'info';
 
 export interface Toast {

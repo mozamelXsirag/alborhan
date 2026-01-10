@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import type { AssessmentHistoryItem, UserSession, Domain, Answers, DomainScore } from '../types';
-import { getActiveDomains } from '../constants';
 import { useToast } from '../contexts/ToastContext';
 import { api } from '../services/api';
 import ResultsChart from './RadarChart';
@@ -12,11 +11,11 @@ interface DashboardTabProps {
 
 const getColorClass = (classification: string): string => {
     switch(classification) {
-        case 'ضعيف': return 'text-red-500 font-bold'; // 0-20% Red
-        case 'تأسيسي': return 'text-orange-500 font-bold'; // 21-40% Orange
-        case 'مستقر': return 'text-lime-500 font-bold'; // 41-60% YellowGreen (Lime)
-        case 'متقدم': return 'text-cyan-500 font-bold'; // 61-80% Cyan
-        case 'رائد': return 'text-purple-500 font-bold animate-pulse'; // 81-100% Purple
+        case 'ضعيف': return 'text-red-500 font-bold';
+        case 'تأسيسي': return 'text-orange-500 font-bold';
+        case 'مستقر': return 'text-lime-500 font-bold';
+        case 'متقدم': return 'text-cyan-500 font-bold';
+        case 'رائد': return 'text-purple-500 font-bold animate-pulse';
         default: return 'text-slate-500';
     }
 };
@@ -63,9 +62,9 @@ const calculateScores = (answers: Answers, domains: Domain[]): { [key: string]: 
 
 const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
   const [history, setHistory] = useState<AssessmentHistoryItem[]>([]);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<AssessmentHistoryItem | null>(null);
-  const [domains] = useState<Domain[]>(getActiveDomains());
   const { showToast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
 
@@ -73,14 +72,17 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
       const fetchData = async () => {
           setLoading(true);
           try {
-              const data = await api.getAllAssessments();
-              if (session.role === 'user') {
-                setHistory(data.filter(item => item.projectInfo.userName === session.name));
-              } else {
-                setHistory(data);
-              }
+              // Parallel Fetch: History + Current Domains Schema
+              const [historyData, domainsData] = await Promise.all([
+                  api.getAllAssessments(),
+                  api.getDomains()
+              ]);
+              
+              setDomains(domainsData);
+              // تصفية النتائج لتظهر فقط للمستخدم الحالي
+              setHistory(historyData.filter(item => item.projectInfo.userName === session.name));
           } catch (e) {
-              console.error("Failed to fetch history", e);
+              console.error("Failed to fetch data", e);
               showToast("فشل في جلب البيانات من الخادم", 'error');
           } finally {
               setLoading(false);
@@ -91,12 +93,12 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
   }, [session]);
 
   const latestAssessmentScores = useMemo(() => {
-      if (history.length === 0) return null;
+      if (history.length === 0 || domains.length === 0) return null;
       return calculateScores(history[0].detailedAnswers, domains);
   }, [history, domains]);
 
   const selectedItemScores = useMemo(() => {
-      if (!selectedItem) return null;
+      if (!selectedItem || domains.length === 0) return null;
       return calculateScores(selectedItem.detailedAnswers, domains);
   }, [selectedItem, domains]);
 
@@ -167,7 +169,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
       return (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
               <div className="w-12 h-12 border-4 border-[#4a3856] border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-slate-500 font-bold">جاري تحميل البيانات من الخادم...</p>
+              <p className="text-slate-500 font-bold">جاري تحميل بياناتك...</p>
           </div>
       );
   }
@@ -177,11 +179,11 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
         <div className="space-y-8">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">
-                    {session.role === 'admin' ? 'سجل البيانات المركزي' : 'لوحة إنجازاتي التقنية'}
+                    لوحة إنجازاتي التقنية
                 </h2>
             </div>
             
-            {session.role === 'user' && history.length > 0 && latestAssessmentScores && (
+            {history.length > 0 && latestAssessmentScores && (
                 <div className="bg-white dark:bg-[#181818] p-6 md:p-8 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
                     <div className="flex flex-col md:flex-row gap-8 items-center md:items-stretch">
                         <div className="flex-1 space-y-4">
@@ -211,19 +213,18 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
             )}
 
             <div className="bg-white dark:bg-[#181818] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <h3 className="text-lg md:text-xl font-bold mb-6 text-slate-900 dark:text-white">سجل التقييمات</h3>
+                <h3 className="text-lg md:text-xl font-bold mb-6 text-slate-900 dark:text-white">سجل التقييمات السابقة</h3>
                 
                 <div className="overflow-x-auto">
                     {history.length === 0 ? (
                         <div className="text-center py-12 text-slate-500">
-                            <p>لا توجد بيانات مسجلة في قاعدة البيانات حالياً.</p>
+                            <p>لا توجد بيانات مسجلة حالياً. ابدأ تقييم جديد الآن!</p>
                         </div>
                     ) : (
                         <table className="w-full text-right border-collapse min-w-[600px]">
                             <thead className="bg-slate-50 dark:bg-slate-900/50 text-xs text-slate-400 uppercase">
                                 <tr>
                                     <th className="px-4 py-3 md:px-6 md:py-4 rounded-r-xl">المشروع</th>
-                                    {session.role === 'admin' && <th className="px-4 py-3 md:px-6 md:py-4">طالب التقييم</th>}
                                     <th className="px-4 py-3 md:px-6 md:py-4">التاريخ</th>
                                     <th className="px-4 py-3 md:px-6 md:py-4 text-center">النسبة</th>
                                     <th className="px-4 py-3 md:px-6 md:py-4 text-center">التصنيف</th>
@@ -234,7 +235,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
                                 {history.map((res) => (
                                     <tr key={res.id} className="hover:bg-blue-500/[0.02] transition-colors group">
                                         <td className="px-4 py-3 md:px-6 md:py-4 font-bold text-slate-800 dark:text-slate-200">{res.projectInfo.projectName}</td>
-                                        {session.role === 'admin' && <td className="px-4 py-3 md:px-6 md:py-4 text-slate-600 dark:text-slate-400">{res.projectInfo.userName}</td>}
                                         <td className="px-4 py-3 md:px-6 md:py-4 text-slate-500 text-left" dir="ltr">{res.date}</td>
                                         <td className="px-4 py-3 md:px-6 md:py-4 font-mono text-center text-blue-500 font-bold">{res.percentage}%</td>
                                         <td className={`px-4 py-3 md:px-6 md:py-4 text-center ${getColorClass(res.classification)}`}>{res.classification}</td>
@@ -246,13 +246,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
                                                     title="عرض التفاصيل"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleDownloadJSON(res)}
-                                                    className="inline-flex items-center justify-center p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shadow-sm"
-                                                    title="تحميل JSON"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                                                 </button>
                                             </div>
                                         </td>
@@ -273,7 +266,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
                     {/* Modal Header */}
                     <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
                         <div>
-                            <h3 className="text-xl font-black text-slate-900 dark:text-white">تفاصيل الطلب والنتائج</h3>
+                            <h3 className="text-xl font-black text-slate-900 dark:text-white">تفاصيل النتيجة</h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400 font-mono mt-1">ID: {selectedItem.id.split('-')[0]}</p>
                         </div>
                         <button 
@@ -288,7 +281,7 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
                     <div id="modal-report-content" className="overflow-y-auto p-6 md:p-8 space-y-8 custom-scrollbar bg-white dark:bg-[#121212]">
                         
                         {/* Project Info Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">اسم المشروع</span>
                                 <span className="text-sm font-bold text-slate-900 dark:text-white block">{selectedItem.projectInfo.projectName}</span>
@@ -296,30 +289,6 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ session }) => {
                             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">طالب التقييم</span>
                                 <span className="text-sm font-bold text-slate-900 dark:text-white block">{selectedItem.projectInfo.userName}</span>
-                            </div>
-                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">الجهة / المنظمة</span>
-                                <span className="text-sm font-bold text-slate-900 dark:text-white block">{selectedItem.projectInfo.organization || '-'}</span>
-                            </div>
-                            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">معلومات التواصل</span>
-                                <div className="text-sm font-bold text-slate-900 dark:text-white space-y-1">
-                                    {selectedItem.projectInfo.phone && (
-                                        <div className="flex items-center gap-2 font-mono" dir="ltr">
-                                            <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                                            <span>{selectedItem.projectInfo.phone}</span>
-                                        </div>
-                                    )}
-                                    {selectedItem.projectInfo.email && (
-                                        <div className="flex items-center gap-2" dir="ltr">
-                                            <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                            <span>{selectedItem.projectInfo.email}</span>
-                                        </div>
-                                    )}
-                                    {!selectedItem.projectInfo.phone && !selectedItem.projectInfo.email && (
-                                        <span className="text-slate-400 italic font-normal">غير متوفر</span>
-                                    )}
-                                </div>
                             </div>
                         </div>
 

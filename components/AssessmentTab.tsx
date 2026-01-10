@@ -1,6 +1,5 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { getActiveDomains } from '../constants';
 import type { Answers, DomainScore, AssessmentHistoryItem, ProjectInfo, Domain } from '../types';
 import QuestionBlock from './QuestionBlock';
 import DomainSidebar from './DomainSidebar';
@@ -34,7 +33,8 @@ interface AssessmentTabProps {
 }
 
 const AssessmentTab: React.FC<AssessmentTabProps> = ({ onExit }) => {
-  const [domains, setDomains] = useState<Domain[]>(getActiveDomains());
+  const [domains, setDomains] = useState<Domain[]>([]);
+  const [isLoadingDomains, setIsLoadingDomains] = useState(true);
   const [projectInfo, setProjectInfo] = useState<ProjectInfo | null>(null);
   const [tempInfo, setTempInfo] = useState<ProjectInfo>({ 
     userName: '', 
@@ -52,19 +52,44 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({ onExit }) => {
 
   const { showToast } = useToast();
   
-  const [answers, setAnswers] = useState<Answers>(() => {
-    return domains.reduce((acc, domain) => {
-      acc[domain.key] = Array(domain.questions.length).fill(null);
-      return acc;
-    }, {} as Answers);
-  });
+  const [answers, setAnswers] = useState<Answers>({});
 
-  const [activeDomainKey, setActiveDomainKey] = useState<string>(domains[0]?.key || "");
+  const [activeDomainKey, setActiveDomainKey] = useState<string>("");
   const [validationAttempted, setValidationAttempted] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Fetch Domains from Database on Mount
+  useEffect(() => {
+      const loadDomains = async () => {
+          setIsLoadingDomains(true);
+          try {
+              const fetchedDomains = await api.getDomains();
+              setDomains(fetchedDomains);
+              
+              // Initialize answers based on fetched domains
+              const initialAnswers = fetchedDomains.reduce((acc, domain) => {
+                  acc[domain.key] = Array(domain.questions.length).fill(null);
+                  return acc;
+              }, {} as Answers);
+              setAnswers(initialAnswers);
+              
+              if (fetchedDomains.length > 0) {
+                  setActiveDomainKey(fetchedDomains[0].key);
+              }
+          } catch (error) {
+              console.error("Failed to load domains", error);
+              showToast("فشل تحميل الأسئلة من الخادم", "error");
+          } finally {
+              setIsLoadingDomains(false);
+          }
+      };
+      loadDomains();
+  }, []);
+
   const { totals, completion, scorePercentage, rawScore, domainCompletions } = useMemo(() => {
+    if (domains.length === 0) return { totals: { perDomain: {} }, completion: { count: 0, total: 0, pct: 0 }, scorePercentage: 0, rawScore: 0, domainCompletions: {} };
+
     const perDomain: { [key: string]: DomainScore } = {};
     const localDomainCompletions: { [key: string]: number } = {};
     let totalNormalizedScore = 0;
@@ -77,11 +102,13 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({ onExit }) => {
       let domainMaxScore = 0;
       let domainAnsweredCount = 0;
 
+      const domainAnswers = answers[domain.key] || [];
+
       domain.questions.forEach((q, index) => {
-        const answer = answers[domain.key][index];
+        const answer = domainAnswers[index];
         const multiplier = getMultiplier(q.weight);
         domainMaxScore += 4 * multiplier;
-        if (answer !== null) {
+        if (answer !== null && answer !== undefined) {
           answeredQuestions++;
           domainAnsweredCount++;
           domainWeightedScore += getAnswerPoints(answer) * multiplier;
@@ -250,6 +277,15 @@ const AssessmentTab: React.FC<AssessmentTabProps> = ({ onExit }) => {
           });
       }
   };
+
+  if (isLoadingDomains) {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+              <div className="w-12 h-12 border-4 border-[#4a3856] border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-slate-500 font-bold">جاري تحميل المعايير من الخادم...</p>
+          </div>
+      );
+  }
 
   if (isSubmitted && projectInfo) {
       const classification = getClassification(scorePercentage);

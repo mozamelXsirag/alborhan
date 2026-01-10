@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import Sidebar from './components/Sidebar';
 import GuideTab from './components/GuideTab';
 import AssessmentTab from './components/AssessmentTab';
 import DashboardTab from './components/DashboardTab';
@@ -9,10 +8,11 @@ import LandingTab from './components/LandingTab';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import Footer from './components/Footer';
 import PrivacyPolicyTab from './components/PrivacyPolicyTab';
+import FeedbackTab from './components/FeedbackTab';
 import { useToast } from './contexts/ToastContext';
 import type { UserSession } from './types';
 
-type Tab = 'landing' | 'guide' | 'assessment' | 'dashboard' | 'admin' | 'privacy';
+type Tab = 'landing' | 'guide' | 'assessment' | 'dashboard' | 'admin' | 'privacy' | 'feedback';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('landing');
@@ -50,8 +50,6 @@ const App: React.FC = () => {
     }
     return { role: 'user', name: 'ضيف' };
   });
-
-  const isUser = session.role === 'user';
 
   const handleAdminAuth = (e: React.FormEvent) => {
       e.preventDefault();
@@ -112,6 +110,8 @@ const App: React.FC = () => {
         return session.role === 'admin' ? <AdminTab /> : <GuideTab onStart={() => setActiveTab('assessment')} />;
       case 'privacy':
         return <PrivacyPolicyTab onBack={() => setActiveTab('landing')} />;
+      case 'feedback':
+        return <FeedbackTab session={session} />;
       case 'guide':
       default:
         return <GuideTab onStart={() => setActiveTab('assessment')} />;
@@ -123,8 +123,6 @@ const App: React.FC = () => {
     return (
       <>
         {renderContent()}
-        {/* We can still show footer on landing page but styled specifically or just inside LandingTab if needed, 
-            but usually LandingTab is full screen. Let's pass the footer inside App for non-landing tabs */}
       </>
     );
   }
@@ -132,16 +130,7 @@ const App: React.FC = () => {
   return (
     <>
       <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#0c0c0c] font-sans" dir="rtl">
-        {/* Sidebar Navigation - Only shown for Admin */}
-        {!isUser && (
-          <Sidebar 
-            activeTab={activeTab as any} 
-            setActiveTab={(tab) => setActiveTab(tab as Tab)} 
-            session={session} 
-            onAdminClick={() => setIsAdminModalOpen(true)}
-            onLogout={handleLogout}
-          />
-        )}
+        {/* Sidebar Removed as requested */}
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
@@ -149,46 +138,24 @@ const App: React.FC = () => {
           <header className="h-20 flex-shrink-0 bg-white/70 dark:bg-[#121212]/70 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 z-30">
              <div className="w-full h-full max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    {isUser ? (
-                        // Logo for Normal Users (Since sidebar is hidden)
-                        <div 
-                            onClick={handleLogoClick}
-                            className="flex items-center gap-3 animate-in fade-in duration-500 cursor-pointer hover:opacity-80 transition-all group"
-                            title="العودة للشاشة الرئيسية"
-                        >
-                            <div className="w-10 h-10 text-[#4a3856] dark:text-[#e8654f] fill-current group-hover:scale-110 transition-transform">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 282.84 284.44" className="w-full h-full drop-shadow-md">
-                                  <g id="Layer_1-2" data-name="Layer 1">
-                                    <path d="M131.09,284.44l72.83-102.67,50.58,35.98-.04,26.07-28.88,40.62h0c31.62,0,57.26-25.64,57.26-57.26v-26.88s-86.28-61.34-86.28-61.34l-74.36,104.59-62.76-44.62L178.43,31.59l104.41,74.24v-48.57c0-31.62-25.64-57.26-57.26-57.26H57.26C25.64,0,0,25.64,0,57.26v169.92c0,31.62,25.64,57.26,57.26,57.26h73.83Z"/>
-                                  </g>
-                                </svg>
-                            </div>
-                            <div>
-                                <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight">مقياس البرهان</h1>
-                                <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">إصدار V2.0</p>
-                            </div>
+                    {/* Unified Logo for All Users (Admin & Regular) */}
+                    <div 
+                        onClick={handleLogoClick}
+                        className="flex items-center gap-3 animate-in fade-in duration-500 cursor-pointer hover:opacity-80 transition-all group"
+                        title="العودة للشاشة الرئيسية"
+                    >
+                        <div className="w-10 h-10 text-[#4a3856] dark:text-[#e8654f] fill-current group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 282.84 284.44" className="w-full h-full drop-shadow-md">
+                              <g id="Layer_1-2" data-name="Layer 1">
+                                <path d="M131.09,284.44l72.83-102.67,50.58,35.98-.04,26.07-28.88,40.62h0c31.62,0,57.26-25.64,57.26-57.26v-26.88s-86.28-61.34-86.28-61.34l-74.36,104.59-62.76-44.62L178.43,31.59l104.41,74.24v-48.57c0-31.62-25.64-57.26-57.26-57.26H57.26C25.64,0,0,25.64,0,57.26v169.92c0,31.62,25.64,57.26,57.26,57.26h73.83Z"/>
+                              </g>
+                            </svg>
                         </div>
-                    ) : (
-                        // Header for Admin (Sidebar visible)
-                        <>
-                            <div 
-                                className="lg:hidden cursor-pointer"
-                                onClick={handleLogoClick}
-                            >
-                               <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white">مقياس البرهان</h1>
-                            </div>
-                            <div className="hidden lg:block">
-                               <p className="text-[10px] md:text-xs font-black text-[#4a3856] dark:text-[#e8654f] uppercase tracking-[0.3em] mb-0.5">القسم الحالي</p>
-                               <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-                                  {activeTab === 'guide' && 'الدليل الإرشادي'}
-                                  {activeTab === 'assessment' && 'المقياس التقني'}
-                                  {activeTab === 'dashboard' && 'لوحة النتائج'}
-                                  {activeTab === 'admin' && 'لوحة التحكم المركزية'}
-                                  {activeTab === 'privacy' && 'سياسة الخصوصية'}
-                               </h2>
-                            </div>
-                        </>
-                    )}
+                        <div>
+                            <h1 className="text-lg md:text-xl font-black text-slate-900 dark:text-white leading-tight">مقياس البرهان</h1>
+                            <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">إصدار V2.0</p>
+                        </div>
+                    </div>
                  </div>
 
                  <div className="flex items-center gap-3">
@@ -241,24 +208,23 @@ const App: React.FC = () => {
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-[#4a3856]/[0.03] dark:bg-[#e8654f]/[0.03] blur-[150px] rounded-full pointer-events-none -mr-48 -mt-48"></div>
         </div>
 
-        {/* Floating Side Button */}
-        <a 
-          href="https://tasks.moddaker.com/ar" 
-          target="_blank" 
-          rel="noopener noreferrer"
+        {/* Floating Side Button - Updated to switch to feedback tab */}
+        <button 
           onClick={(e) => {
+            // Toggle expansion on touch devices
             const isTouchDevice = window.matchMedia('(hover: none)').matches;
             if (isTouchDevice && !isFloatingExpanded) {
-                e.preventDefault();
                 setIsFloatingExpanded(true);
+                return;
             }
+            setActiveTab('feedback');
           }}
           onMouseLeave={() => setIsFloatingExpanded(false)}
           onBlur={() => setIsFloatingExpanded(false)}
           className={`fixed right-0 top-1/2 -translate-y-1/2 z-[90] flex items-center bg-orange-500 hover:bg-orange-600 text-white rounded-l-xl shadow-lg transition-all duration-300 ease-out group ${
             isFloatingExpanded ? 'pl-4 pr-3' : 'p-3 hover:pl-4 hover:pr-3'
           }`}
-          title="نظام المهام"
+          title="رأيك يهمنا"
         >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-chat-left-text-fill flex-shrink-0" viewBox="0 0 16 16">
               <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4.414a1 1 0 0 0-.707.293L.854 15.146A.5.5 0 0 1 0 14.793zm3.5 1a.5.5 0 0 0 0 1h9a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h9a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1z"/>
@@ -268,7 +234,7 @@ const App: React.FC = () => {
             }`}>
                 رأيك يهمنا
             </span>
-        </a>
+        </button>
 
         {/* Admin Login Modal */}
         {isAdminModalOpen && (
