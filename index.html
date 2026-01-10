@@ -1,0 +1,126 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark"> <!-- Start in dark mode by default -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>مقياس البرهان</title>
+    
+    <!-- Google Fonts: IBM Plex Sans Arabic & IBM Plex Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class', // Enable class-based dark mode
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['IBM Plex Sans Arabic', 'sans-serif'],
+              mono: ['IBM Plex Mono', 'monospace'],
+            },
+            keyframes: {
+              pulseGlow: {
+                '0%, 100%': { opacity: 0.7, 'text-shadow': '0 0 5px currentColor' },
+                '50%': { opacity: 1, 'text-shadow': '0 0 15px currentColor' },
+              },
+              shimmer: {
+                '0%': { backgroundPosition: '200% center' },
+                '100%': { backgroundPosition: '-200% center' },
+              },
+              shake: {
+                '0%, 100%': { transform: 'translateX(0)' },
+                '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-5px)' },
+                '20%, 40%, 60%, 80%': { transform: 'translateX(5px)' },
+              }
+            },
+            animation: {
+              pulseGlow: 'pulseGlow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              shimmer: 'shimmer 4s linear infinite',
+              shake: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+            }
+          },
+        },
+      }
+    </script>
+    
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- html2canvas for PNG Export -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <style>
+      /* Custom scrollbar */
+      :root {
+        --scrollbar-track: #e5e7eb;
+        --scrollbar-thumb: #9ca3af;
+        --scrollbar-thumb-hover: #6b7280;
+      }
+      .dark {
+        --scrollbar-track: #1f1f1f;
+        --scrollbar-thumb: #4a4a4a;
+        --scrollbar-thumb-hover: #6a6a6a;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--scrollbar-thumb-hover);
+      }
+
+      /* Print Styles */
+      @media print {
+        .no-print { display: none !important; }
+        body { background: white !important; color: black !important; }
+        .dark { background: white !important; color: black !important; }
+        .dark body { background: white !important; color: black !important; }
+        .dark .bg-[#181818], .dark .bg-[#121212], .dark .bg-[#0c0c0c] { background: white !important; color: black !important; border-color: #eee !important; }
+        .dark .text-white, .dark .text-slate-200, .dark .text-slate-300, .dark .text-slate-400 { color: black !important; }
+        main { overflow: visible !important; height: auto !important; padding: 0 !important; margin: 0 !important; }
+        .shadow-xl, .shadow-2xl, .shadow-sm, .shadow-lg { box-shadow: none !important; border: 1px solid #ddd !important; }
+        header, aside, button:not(.print-visible) { display: none !important; }
+        .rounded-[2.5rem], .rounded-[3rem], .rounded-3xl { border-radius: 1rem !important; }
+        section { page-break-inside: avoid; margin-bottom: 2rem; }
+        #root { display: block !important; padding: 0 !important; margin: 0 !important; }
+        .container { max-width: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        /* Force color printing */
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "chart.js": "https://aistudiocdn.com/chart.js@^4.5.1",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-50 text-slate-700 dark:bg-[#121212] dark:text-slate-300 font-sans transition-colors duration-300">
+    <div id="root"></div>
+    <script type="text/babel" data-type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
